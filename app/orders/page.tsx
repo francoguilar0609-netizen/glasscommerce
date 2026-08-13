@@ -1,0 +1,5 @@
+"use client";
+import {useEffect,useState} from "react";
+import Link from "next/link";
+type Order={id:string;total:number;status:string;created_at:string};
+export default function Orders(){const[orders,setOrders]=useState<Order[]>([]);const[loading,setLoading]=useState(true);useEffect(()=>{fetch("/api/orders").then(async r=>{if(r.status===401){window.location.assign("/signin-with-chatgpt?return_to=/orders");return}const d=await r.json();setOrders(d.orders||[]);setLoading(false)})},[]);return <main className="admin-page"><Link className="brand" href="/"><span>G</span>GlassCommerce</Link><div className="eyebrow">MI CUENTA</div><h1>Mis pedidos</h1>{loading?<p>Cargando…</p>:!orders.length?<p>Aún no tienes pedidos.</p>:<div className="inventory glass">{orders.map(o=><div className="inventory-row" key={o.id}><strong>{o.id}</strong><span>{new Intl.NumberFormat("es-PE",{style:"currency",currency:"PEN"}).format(o.total/100)}</span><span>{new Date(o.created_at).toLocaleDateString("es-PE")}</span><span className="status">{o.status}</span></div>)}</div>}<a href="/signout-with-chatgpt?return_to=/">Cerrar sesión</a></main>}

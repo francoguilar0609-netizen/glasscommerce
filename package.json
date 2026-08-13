@@ -1,8 +1,8 @@
 {
   "name": "glasscommerce",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": false,
-  "description": "Open-source glassmorphism e-commerce MVP",
+  "description": "Full-stack glassmorphism commerce platform",
   "license": "MIT",
   "engines": {
     "node": ">=22.13.0"
