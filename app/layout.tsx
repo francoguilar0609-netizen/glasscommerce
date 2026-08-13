@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "GlassCommerce",
-  description: "An open-source glassmorphism e-commerce MVP.",
+  description: "Tienda electrónica con pagos mediante Mercado Pago, pedidos persistentes y administración segura.",
   other: {
     "codex-preview": "development",
   },
