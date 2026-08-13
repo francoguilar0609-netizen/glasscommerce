@@ -1,23 +1,18 @@
 # GlassCommerce
 
-GlassCommerce is an open-source e-commerce MVP built with React, TypeScript,
-Vinext and a responsive glassmorphism interface. It demonstrates product
-discovery, category filters, a browser-persistent cart, a simulated checkout,
-and a read-only administration dashboard.
+GlassCommerce is an open-source, full-stack e-commerce platform with a premium glassmorphism interface. It includes a persistent catalog, customer accounts, orders, inventory administration, and a server-side Mercado Pago Checkout Pro integration.
 
-> **MVP safety boundary:** this release does not collect credentials, process
-> payments, call external APIs, or persist server-side customer data. Checkout
-> creates a local demonstration order only.
+> **Current status:** the complete commerce workflow is implemented. Real charges remain disabled until the owner configures a private `MERCADO_PAGO_ACCESS_TOKEN` in the hosting environment.
 
 ## Features
 
-- Searchable six-product catalog with category filters
-- Add, remove and update cart items
-- Cart persistence with `localStorage`
-- Explicitly simulated checkout with generated demo order IDs
-- Read-only inventory and catalog-value dashboard
-- Responsive layout, keyboard-accessible controls and reduced-motion support
-- Production build validation and rendered HTML test
+- Persistent catalog, inventory, and orders backed by Cloudflare D1
+- Customer identity and individual order history
+- Protected administration dashboard with inventory editing
+- PEN checkout and informational USD price display
+- Server-calculated totals and stock validation
+- Mercado Pago preference creation and verified payment notifications
+- Automated lint, build, rendered HTML, and artifact checks
 
 ## Quick start
 
@@ -37,16 +32,15 @@ npm run lint
 npm test
 ```
 
-## Architecture and trust boundaries
+## Architecture and payment security
 
-The MVP is a client-side demonstration. Static product data is defined in
-`app/page.tsx`; cart state is stored on the current device. There is no account
-system, database-backed order flow, payment provider, webhook receiver, or
-privileged admin mutation surface yet.
+- React, TypeScript, Vinext, Vite, Cloudflare Workers, D1, and Drizzle migrations
+- Server-only payment credentials; secrets are never committed to Git
+- Prices and totals are recalculated on the server
+- Mercado Pago notifications are verified by retrieving the payment directly
+- Orders update only when reference, currency, and amount match
 
-Future server-side work must include authorization checks, secure session and
-secret handling, idempotent payment webhooks, server-calculated prices,
-inventory transaction safety, request validation and dependency review.
+Mercado Pago Peru settles checkout in PEN. USD values are displayed using a configurable reference exchange rate. Real payment testing requires the owner's Mercado Pago test credentials.
 
 ## Contributing and security
 
