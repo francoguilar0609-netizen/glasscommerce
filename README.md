@@ -11,7 +11,8 @@ The architecture now prevents overselling through database-backed reservations a
 - `CRON_SECRET`: bearer secret for `POST /api/internal/release-reservations`.
 - `USD_PEN_RATE`: informational PEN per USD rate; charges remain in PEN.
 - `ALLOW_LOCAL_REGISTRATION=true`: enables unverified self-registration and is intended only for controlled environments until email verification is integrated. Leave unset in production.
-- `TRUST_PROXY_AUTH_HEADERS=true`: optional compatibility bridge for a proxy that strips client headers and injects verified `oai-authenticated-user-email`. Leave unset elsewhere.
+- `TRUST_PROXY_AUTH_HEADERS=true`: enables the optional proxy identity bridge.
+- `TRUST_PROXY_AUTH_SECRET`: required with the bridge. The trusted edge must strip client values and inject the same secret in `x-glasscommerce-proxy-secret` plus the verified email in `oai-authenticated-user-email`. Leave both settings unset elsewhere.
 - `ADMIN_EMAILS`: administrators accepted only through that verified proxy bridge. Portable accounts obtain admin access by setting `users.role='admin'` through a controlled operational process, never merely by registering a matching email.
 
 ## Authentication
@@ -30,6 +31,9 @@ npm run lint
 npm run typecheck
 npm test
 ```
+
+## Migration and rollback
+Before deploying, back up D1 and check that existing non-null `payment_id` values are unique. Apply `0001_secure_auth_inventory` before the new Worker; the Worker now refuses to run against a partial schema. The migration is forward-only because SQLite/D1 cannot safely remove these columns in place. Rollback means restoring the pre-migration D1 backup together with the previous Worker, or deploying a forward corrective migration. Do not roll back only the application while active reservations exist.
 
 ## Security
 Report vulnerabilities through GitHub private security advisories. Never commit credentials or customer data.
