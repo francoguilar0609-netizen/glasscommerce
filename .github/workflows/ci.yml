@@ -31,15 +31,11 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
 
-      - name: Drizzle metadata audit
+      - name: Verify Drizzle migrations are synchronized
         run: |
           npm run db:generate
-          git status --porcelain drizzle | while read -r state file; do
-            echo "DRIZZLE_FILE_BEGIN $state $file"
-            base64 -w 0 "$file"
-            echo
-            echo "DRIZZLE_FILE_END $file"
-          done
+          git diff --exit-code -- drizzle
+          test -z "$(git status --porcelain --untracked-files=all drizzle)"
 
       - name: Test
         run: npm test
