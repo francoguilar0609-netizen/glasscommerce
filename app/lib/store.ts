@@ -1,5 +1,5 @@
 export type Product={id:number;name:string;slug:string;category:string;description:string;emoji:string;price_pen:number;stock:number;reserved_stock:number;active:number};
-export type RuntimeEnv={DB:D1Database;MERCADO_PAGO_ACCESS_TOKEN?:string;MERCADO_PAGO_WEBHOOK_SECRET?:string;ADMIN_EMAILS?:string;USD_PEN_RATE?:string;TRUST_PROXY_AUTH_HEADERS?:string;CRON_SECRET?:string};
+export type RuntimeEnv={DB:D1Database;MERCADO_PAGO_ACCESS_TOKEN?:string;MERCADO_PAGO_WEBHOOK_SECRET?:string;ADMIN_EMAILS?:string;USD_PEN_RATE?:string;TRUST_PROXY_AUTH_HEADERS?:string;ALLOW_LOCAL_REGISTRATION?:string;CRON_SECRET?:string};
 export function runtimeEnv(){const runtime=(globalThis as typeof globalThis&{__GLASSCOMMERCE_ENV?:RuntimeEnv}).__GLASSCOMMERCE_ENV;if(!runtime?.DB)throw new Error("La base de datos de la tienda no está disponible.");return runtime}
 export async function ensureStore(){
  const {DB}=runtimeEnv();
