@@ -1,0 +1,1 @@
+import {authenticate} from "../../../lib/auth";import{ensureStore}from"../../../lib/store";export async function GET(request:Request){await ensureStore();const user=await authenticate(request);return user?Response.json({user}):Response.json({error:"No autenticado"},{status:401})}
