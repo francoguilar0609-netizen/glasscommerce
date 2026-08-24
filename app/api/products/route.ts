@@ -1,7 +1,1 @@
-import { ensureStore, runtimeEnv } from "../../lib/store";
-
-export async function GET() {
-  await ensureStore();
-  const rows = await runtimeEnv().DB.prepare("SELECT * FROM products WHERE active = 1 ORDER BY id").all();
-  return Response.json({ products: rows.results, usdPenRate: Number(runtimeEnv().USD_PEN_RATE || 3.75) });
-}
+import{releaseExpiredReservations}from"../../lib/inventory";import{ensureStore,runtimeEnv}from"../../lib/store";export async function GET(){await ensureStore();await releaseExpiredReservations();const rows=await runtimeEnv().DB.prepare("SELECT id,name,slug,category,description,emoji,price_pen,stock-reserved_stock AS stock,active FROM products WHERE active=1 ORDER BY id").all();return Response.json({products:rows.results,usdPenRate:Number(runtimeEnv().USD_PEN_RATE||3.75)})}
