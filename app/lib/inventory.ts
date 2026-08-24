@@ -22,7 +22,8 @@ export async function recordPayment(input:{orderId:string;paymentId:string;statu
     if(input.status==="approved")await db.batch([
       db.prepare("INSERT INTO payment_events(provider,event_key,payment_id,order_id,status,created_at) VALUES('mercadopago',?,?,?,?,?)").bind(input.eventKey,input.paymentId,input.orderId,input.status,now),
       db.prepare("UPDATE inventory_reservations SET status='consumed',updated_at=? WHERE order_id=? AND status='active'").bind(now,input.orderId),
-      db.prepare("UPDATE orders SET status='approved',payment_id=? WHERE id=? AND status!='approved'").bind(input.paymentId,input.orderId),
+      db.prepare("UPDATE orders SET status='approved',payment_id=? WHERE id=? AND status!='approved' AND EXISTS(SELECT 1 FROM inventory_reservations WHERE order_id=? AND status='consumed')").bind(input.paymentId,input.orderId,input.orderId),
+      db.prepare("UPDATE orders SET status='payment_review',payment_id=? WHERE id=? AND status!='approved' AND EXISTS(SELECT 1 FROM inventory_reservations WHERE order_id=? AND status='released')").bind(input.paymentId,input.orderId,input.orderId),
     ]);
     else if(["rejected","cancelled","expired"].includes(input.status))await db.batch([
       db.prepare("INSERT INTO payment_events(provider,event_key,payment_id,order_id,status,created_at) VALUES('mercadopago',?,?,?,?,?)").bind(input.eventKey,input.paymentId,input.orderId,input.status,now),
