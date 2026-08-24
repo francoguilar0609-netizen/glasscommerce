@@ -1,3 +1,16 @@
+-- Read-only hard stop: an existing payment_id must identify exactly one order.
+-- The deliberately invalid JSON path is evaluated only when duplicates exist,
+-- aborting the migration before any schema or data change. Run
+-- scripts/preflight-0001.sql first to list the conflicting rows.
+SELECT json_extract('[]', '$[')
+FROM (
+ SELECT payment_id
+ FROM orders
+ WHERE payment_id IS NOT NULL
+ GROUP BY payment_id
+ HAVING COUNT(*) > 1
+)
+LIMIT 1;
 ALTER TABLE products ADD COLUMN reserved_stock INTEGER NOT NULL DEFAULT 0 CHECK (reserved_stock >= 0 AND reserved_stock <= stock);
 ALTER TABLE orders ADD COLUMN idempotency_key TEXT;
 ALTER TABLE orders ADD COLUMN checkout_fingerprint TEXT;
@@ -89,3 +102,4 @@ BEGIN
      reserved_stock=reserved_stock-(SELECT quantity FROM reservation_items WHERE reservation_id=NEW.id AND product_id=products.id)
  WHERE id IN (SELECT product_id FROM reservation_items WHERE reservation_id=NEW.id);
 END;
+

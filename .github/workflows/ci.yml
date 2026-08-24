@@ -37,8 +37,9 @@ jobs:
           git diff --exit-code -- drizzle
           test -z "$(git status --porcelain --untracked-files=all drizzle)"
 
-      - name: Test
+      - name: Test application, migrations, and payment races
         run: npm test
 
       - name: Validate artifact
         run: npm run validate:artifact
+
