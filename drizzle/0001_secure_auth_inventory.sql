@@ -1,10 +1,13 @@
-ALTER TABLE products ADD COLUMN reserved_stock INTEGER NOT NULL DEFAULT 0 CHECK (reserved_stock >= 0);
+ALTER TABLE products ADD COLUMN reserved_stock INTEGER NOT NULL DEFAULT 0 CHECK (reserved_stock >= 0 AND reserved_stock <= stock);
 ALTER TABLE orders ADD COLUMN idempotency_key TEXT;
+ALTER TABLE orders ADD COLUMN checkout_fingerprint TEXT;
+ALTER TABLE orders ADD COLUMN payment_status TEXT NOT NULL DEFAULT 'pending';
 ALTER TABLE orders ADD COLUMN checkout_url TEXT;
 ALTER TABLE orders ADD COLUMN expires_at TEXT;
 CREATE UNIQUE INDEX orders_customer_idempotency_unique ON orders(customer_email,idempotency_key);
 CREATE UNIQUE INDEX orders_payment_id_unique ON orders(payment_id) WHERE payment_id IS NOT NULL;
 CREATE INDEX orders_status_idx ON orders(status);
+CREATE INDEX orders_expiry_idx ON orders(status,expires_at);
 CREATE TABLE users (
  id TEXT PRIMARY KEY NOT NULL,
  email TEXT NOT NULL UNIQUE,
