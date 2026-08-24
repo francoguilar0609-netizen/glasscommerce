@@ -1,0 +1,1 @@
+import {logout} from "../../../lib/auth";import{ensureStore}from"../../../lib/store";export async function POST(request:Request){try{await ensureStore();return Response.json({ok:true},{headers:{"Set-Cookie":await logout(request)}})}catch(error){if(error instanceof Response)return error;return Response.json({error:"No se pudo cerrar la sesión."},{status:500})}}
