@@ -1,0 +1,1 @@
+import{validateMercadoPagoSignature}from"./mercadopago-signature.mjs";export async function verifyMercadoPagoSignature(request:Request,dataId:string,secret:string){return validateMercadoPagoSignature({xSignature:request.headers.get("x-signature")||"",xRequestId:request.headers.get("x-request-id")||"",dataId,secret})}

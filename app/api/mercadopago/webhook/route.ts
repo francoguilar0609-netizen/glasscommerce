@@ -1,15 +1,3 @@
-import { ensureStore, runtimeEnv } from "../../../lib/store";
-export async function POST(request: Request) {
-  await ensureStore();
-  const url=new URL(request.url); const body=await request.json().catch(()=>({})) as {data?:{id?:string}};
-  const paymentId=body.data?.id || url.searchParams.get("data.id"); const token=runtimeEnv().MERCADO_PAGO_ACCESS_TOKEN;
-  if(!paymentId || !token) return new Response("ok");
-  const response=await fetch(`https://api.mercadopago.com/v1/payments/${encodeURIComponent(paymentId)}`,{headers:{Authorization:`Bearer ${token}`}});
-  if(!response.ok) return new Response("verification failed",{status:502});
-  const payment=await response.json() as {external_reference?:string;status?:string;transaction_amount?:number;currency_id?:string};
-  const order=payment.external_reference ? await runtimeEnv().DB.prepare("SELECT * FROM orders WHERE id = ?").bind(payment.external_reference).first<{total:number}>() : null;
-  if(order && payment.currency_id==="PEN" && Math.round(Number(payment.transaction_amount)*100)===Number(order.total)) {
-    await runtimeEnv().DB.prepare("UPDATE orders SET status = ?, payment_id = ? WHERE id = ?").bind(payment.status || "pending",String(paymentId),payment.external_reference).run();
-  }
-  return new Response("ok");
-}
+import{recordPayment}from"../../../lib/inventory";import{verifyMercadoPagoSignature}from"../../../lib/mercadopago";import{ensureStore,runtimeEnv}from"../../../lib/store";
+export async function POST(request:Request){await ensureStore();const url=new URL(request.url),queryId=url.searchParams.get("data.id")||"",body=await request.json().catch(()=>({})) as {type?:string;data?:{id?:string|number}},bodyId=String(body.data?.id||""),paymentId=queryId||bodyId,type=url.searchParams.get("type")||body.type||"";const env=runtimeEnv();if(type!=="payment"||!/^\d+$/.test(paymentId)||queryId&&bodyId&&queryId!==bodyId)return new Response("Notificación inválida",{status:400});if(!env.MERCADO_PAGO_ACCESS_TOKEN||!env.MERCADO_PAGO_WEBHOOK_SECRET)return new Response("Webhook no configurado",{status:503});if(!(await verifyMercadoPagoSignature(request,paymentId,env.MERCADO_PAGO_WEBHOOK_SECRET)))return new Response("Firma inválida",{status:401});let response:Response;try{response=await fetch(`https://api.mercadopago.com/v1/payments/${encodeURIComponent(paymentId)}`,{headers:{Authorization:`Bearer ${env.MERCADO_PAGO_ACCESS_TOKEN}`},signal:AbortSignal.timeout(10000)})}catch{return new Response("verification failed",{status:502})}if(!response.ok)return new Response("verification failed",{status:502});const payment=await response.json() as {external_reference?:string;status?:string;transaction_amount?:number;currency_id?:string;id?:number|string;date_approved?:string|null},order=payment.external_reference?await env.DB.prepare("SELECT id,total FROM orders WHERE id=?").bind(payment.external_reference).first<{id:string;total:number}>():null;if(!order||payment.currency_id!=="PEN"||!Number.isFinite(payment.transaction_amount)||Math.round(Number(payment.transaction_amount)*100)!==order.total)return new Response("payment mismatch",{status:422});const status=payment.status||"pending",approvedDate=status==="approved"&&payment.date_approved?new Date(payment.date_approved):null,approvedAt=approvedDate&&Number.isFinite(approvedDate.getTime())?approvedDate.toISOString():null;await recordPayment({orderId:order.id,paymentId:String(payment.id||paymentId),status,eventKey:`${paymentId}:${status}`,approvedAt});return new Response("ok")}
+

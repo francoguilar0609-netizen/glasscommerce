@@ -1,7 +1,1 @@
-import { ensureStore, runtimeEnv, userEmail } from "../../lib/store";
-export async function GET(request: Request) {
-  const email=userEmail(request); if(!email) return Response.json({error:"No autorizado"},{status:401});
-  await ensureStore();
-  const orders=await runtimeEnv().DB.prepare("SELECT * FROM orders WHERE customer_email = ? ORDER BY created_at DESC LIMIT 50").bind(email).all();
-  return Response.json({orders:orders.results});
-}
+import{requireUser}from"../../lib/auth";import{releaseExpiredReservations}from"../../lib/inventory";import{ensureStore,runtimeEnv}from"../../lib/store";export async function GET(request:Request){try{await ensureStore();await releaseExpiredReservations();const user=await requireUser(request);const orders=await runtimeEnv().DB.prepare("SELECT * FROM orders WHERE customer_email=? ORDER BY created_at DESC LIMIT 50").bind(user.email).all();return Response.json({orders:orders.results})}catch(error){if(error instanceof Response)return error;return Response.json({error:"No se pudieron cargar los pedidos."},{status:500})}}
