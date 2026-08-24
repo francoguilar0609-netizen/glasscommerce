@@ -20,7 +20,7 @@ export async function verifyPassword(password:string,encoded:string){
 function normalizeEmail(value:string){const email=value.trim().toLowerCase();if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)||email.length>254)throw new Response("Correo inválido.",{status:400});return email}
 function cookie(token:string,request:Request,maxAge:number){const secure=new URL(request.url).protocol==="https:"?"; Secure":"";return `${COOKIE}=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${secure}`}
 export async function createAccount(request:Request,emailValue:string,password:string){
-  assertSameOrigin(request);const env=runtimeEnv(),email=normalizeEmail(emailValue);
+  assertSameOrigin(request);const env=runtimeEnv();if(env.ALLOW_LOCAL_REGISTRATION!=="true")throw new Response("El registro local está desactivado.",{status:403});const email=normalizeEmail(emailValue);
   const blocked=(env.ADMIN_EMAILS||"").toLowerCase().split(",").map(v=>v.trim()).includes(email);
   if(blocked)throw new Response("Ese correo requiere acceso mediante el proveedor verificado.",{status:403});
   const passwordHash=await hashPassword(password),id=crypto.randomUUID(),now=new Date().toISOString();
@@ -29,10 +29,12 @@ export async function createAccount(request:Request,emailValue:string,password:s
   return createSession(request,{id,email,role:"customer",source:"session"});
 }
 export async function login(request:Request,emailValue:string,password:string){
-  assertSameOrigin(request);const email=normalizeEmail(emailValue),env=runtimeEnv();
+  assertSameOrigin(request);const email=normalizeEmail(emailValue),env=runtimeEnv();const ip=request.headers.get("cf-connecting-ip")||request.headers.get("x-forwarded-for")?.split(",")[0].trim()||"unknown";const attemptKey=await sha256(ip+"|"+email),now=new Date(),resetAt=new Date(now.getTime()+15*60*1000).toISOString();
+  await env.DB.prepare("INSERT INTO auth_attempts(key,count,reset_at) VALUES(?,1,?) ON CONFLICT(key) DO UPDATE SET count=CASE WHEN reset_at<=? THEN 1 ELSE count+1 END,reset_at=CASE WHEN reset_at<=? THEN excluded.reset_at ELSE reset_at END").bind(attemptKey,resetAt,now.toISOString(),now.toISOString()).run();
+  const attempts=await env.DB.prepare("SELECT count FROM auth_attempts WHERE key=?").bind(attemptKey).first<{count:number}>();if((attempts?.count||0)>5)throw new Response("Demasiados intentos. Prueba más tarde.",{status:429,headers:{"Retry-After":"900"}});
   const row=await env.DB.prepare("SELECT id,email,password_hash,role FROM users WHERE email=?").bind(email).first<{id:string;email:string;password_hash:string|null;role:"customer"|"admin"}>();
   if(!row?.password_hash||!(await verifyPassword(password,row.password_hash)))throw new Response("Credenciales inválidas.",{status:401});
-  return createSession(request,{id:row.id,email:row.email,role:row.role,source:"session"});
+  await env.DB.prepare("DELETE FROM auth_attempts WHERE key=?").bind(attemptKey).run();return createSession(request,{id:row.id,email:row.email,role:row.role,source:"session"});
 }
 async function createSession(request:Request,user:AuthUser){
   const token=randomToken(),tokenHash=await sha256(token),now=new Date(),expires=new Date(now.getTime()+SESSION_DAYS*86400000);
