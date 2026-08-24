@@ -1,0 +1,5 @@
+function hex(bytes){return[...new Uint8Array(bytes)].map(v=>v.toString(16).padStart(2,"0")).join("")}
+function equal(a,b){if(a.length!==b.length)return false;let n=0;for(let i=0;i<a.length;i++)n|=a.charCodeAt(i)^b.charCodeAt(i);return n===0}
+export function mercadoPagoManifest(dataId,requestId,ts){return `id:${dataId.toLowerCase()};request-id:${requestId};ts:${ts};`}
+export async function mercadoPagoSignature(dataId,requestId,ts,secret){const key=await crypto.subtle.importKey("raw",new TextEncoder().encode(secret),{name:"HMAC",hash:"SHA-256"},false,["sign"]);return hex(await crypto.subtle.sign("HMAC",key,new TextEncoder().encode(mercadoPagoManifest(dataId,requestId,ts))))}
+export async function validateMercadoPagoSignature({xSignature,xRequestId,dataId,secret}){const parts=Object.fromEntries(xSignature.split(",").map(v=>v.trim().split("=",2)));if(!parts.ts||!parts.v1||!xRequestId||!/^\d{10,16}$/.test(parts.ts))return false;return equal(await mercadoPagoSignature(dataId,xRequestId,parts.ts,secret),parts.v1.toLowerCase())}
