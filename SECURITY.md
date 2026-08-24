@@ -1,21 +1,10 @@
 # Security Policy
+Security fixes apply to the latest release. Report vulnerabilities using GitHub private security advisories; never open a public issue containing credentials, payment data or personal information.
 
-## Supported versions
+## Trust boundaries
+Portable accounts use password-derived hashes and server-side sessions. Proxy identity headers are disabled unless `TRUST_PROXY_AUTH_HEADERS=true`; enable that option only when the deployment edge removes client-supplied identity headers and injects verified values. Administrative role assignment for local accounts must be performed through a controlled database operation.
 
-GlassCommerce is pre-1.0. Security fixes are applied to the latest release.
+Mercado Pago credentials and webhook secrets are server-only. Signed notifications are verified against the Payments API, and inventory transitions are idempotent in D1.
 
-## Reporting a vulnerability
-
-Do not open a public issue for an unpatched vulnerability. Use GitHub's private
-security advisory feature for this repository. Include affected files, impact,
-reproduction steps and a suggested mitigation when available.
-
-The maintainer will acknowledge actionable reports, validate impact and
-coordinate a fix before public disclosure. Never include real credentials,
-payment data or personal information in a report.
-
-## Current MVP boundary
-
-Version 0.1.0 has no server-side authentication, payment processing, webhooks
-or external API calls. Its cart and demo order state stay in the browser.
-These boundaries will be revised when server-side components are introduced.
+## Operational requirements
+Use HTTPS, rotate secrets, apply migrations before deployment, invoke reservation cleanup on a schedule, monitor failed webhooks and maintain tested D1 backups.
