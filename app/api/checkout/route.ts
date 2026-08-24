@@ -1,31 +1,19 @@
-import { ensureStore, orderId, runtimeEnv, userEmail } from "../../lib/store";
-
-type Line = { productId: number; quantity: number };
-export async function POST(request: Request) {
-  const email = userEmail(request);
-  if (!email) return Response.json({ error: "Inicia sesión con ChatGPT para comprar." }, { status: 401 });
-  await ensureStore();
-  const body = await request.json() as { items?: Line[] };
-  const lines = (body.items || []).filter(x => Number.isInteger(x.productId) && Number.isInteger(x.quantity) && x.quantity > 0 && x.quantity <= 10);
-  if (!lines.length) return Response.json({ error: "El carrito está vacío." }, { status: 400 });
-  const products = [];
-  for (const line of lines) {
-    const product = await runtimeEnv().DB.prepare("SELECT * FROM products WHERE id = ? AND active = 1").bind(line.productId).first<Record<string, unknown>>();
-    if (!product || Number(product.stock) < line.quantity) return Response.json({ error: "Un producto no tiene stock suficiente." }, { status: 409 });
-    products.push({ ...product, quantity: line.quantity });
-  }
-  const total = products.reduce((sum,p)=>sum + Number(p.price_pen) * Number(p.quantity), 0);
-  const id = orderId();
-  await runtimeEnv().DB.batch([
-    runtimeEnv().DB.prepare("INSERT INTO orders (id,customer_email,currency,total,status,created_at) VALUES (?,?,?,?,?,?)").bind(id,email,"PEN",total,"pending",new Date().toISOString()),
-    ...products.map(p=>runtimeEnv().DB.prepare("INSERT INTO order_items (order_id,product_id,name,unit_price,quantity) VALUES (?,?,?,?,?)").bind(id,p.id,p.name,p.price_pen,p.quantity)),
-  ]);
-  const token = runtimeEnv().MERCADO_PAGO_ACCESS_TOKEN;
-  if (!token) return Response.json({ error: "Mercado Pago aún está en modo de configuración.", orderId: id }, { status: 503 });
-  const origin = new URL(request.url).origin;
-  const response = await fetch("https://api.mercadopago.com/checkout/preferences", { method:"POST", headers:{ Authorization:`Bearer ${token}`, "Content-Type":"application/json", "X-Idempotency-Key":id }, body:JSON.stringify({ external_reference:id, items:products.map(p=>({ id:String(p.id), title:p.name, currency_id:"PEN", unit_price:Number(p.price_pen)/100, quantity:p.quantity })), payer:{ email }, back_urls:{ success:`${origin}/orders?payment=success`, pending:`${origin}/orders?payment=pending`, failure:`${origin}/orders?payment=failure` }, auto_return:"approved", notification_url:`${origin}/api/mercadopago/webhook` }) });
-  if (!response.ok) return Response.json({ error:"Mercado Pago rechazó la creación del pago.", orderId:id }, { status:502 });
-  const preference = await response.json() as { id:string; init_point:string; sandbox_init_point?:string };
-  await runtimeEnv().DB.prepare("UPDATE orders SET preference_id = ? WHERE id = ?").bind(preference.id,id).run();
-  return Response.json({ orderId:id, checkoutUrl: preference.init_point || preference.sandbox_init_point });
-}
+import{requireUser}from"../../lib/auth";import{releaseExpiredReservations,releaseOrder,reserveOrder}from"../../lib/inventory";import{ensureStore,orderId,runtimeEnv}from"../../lib/store";import{assertSameOrigin}from"../../lib/security";
+type Line={productId:number;quantity:number};
+export async function POST(request:Request){try{
+ assertSameOrigin(request);await ensureStore();await releaseExpiredReservations();const user=await requireUser(request);
+ const key=request.headers.get("idempotency-key")?.trim();if(!key||key.length<16||key.length>128)return Response.json({error:"Falta una clave de idempotencia válida."},{status:400});
+ const existing=await runtimeEnv().DB.prepare("SELECT id,status,checkout_url FROM orders WHERE customer_email=? AND idempotency_key=?").bind(user.email,key).first<{id:string;status:string;checkout_url:string|null}>();
+ if(existing)return Response.json({orderId:existing.id,status:existing.status,checkoutUrl:existing.checkout_url});
+ const body=await request.json() as {items?:Line[]};const grouped=new Map<number,number>();
+ for(const line of body.items||[]){if(!Number.isInteger(line.productId)||!Number.isInteger(line.quantity)||line.quantity<=0)continue;grouped.set(line.productId,(grouped.get(line.productId)||0)+line.quantity)}
+ if(!grouped.size||grouped.size>50||[...grouped.values()].some(q=>q>10))return Response.json({error:"Carrito inválido."},{status:400});
+ const products=[];for(const [productId,quantity] of grouped){const p=await runtimeEnv().DB.prepare("SELECT id,name,price_pen,stock,reserved_stock FROM products WHERE id=? AND active=1").bind(productId).first<{id:number;name:string;price_pen:number;stock:number;reserved_stock:number}>();if(!p||p.stock-p.reserved_stock<quantity)return Response.json({error:"Un producto no tiene stock suficiente."},{status:409});products.push({...p,quantity})}
+ const total=products.reduce((sum,p)=>sum+p.price_pen*p.quantity,0),id=orderId(),expiresAt=new Date(Date.now()+30*60*1000).toISOString();
+ try{await reserveOrder({orderId:id,email:user.email,idempotencyKey:key,products,total,expiresAt})}catch(error){if(String(error).includes("insufficient_stock"))return Response.json({error:"El stock cambió. Revisa el carrito."},{status:409});throw error}
+ const token=runtimeEnv().MERCADO_PAGO_ACCESS_TOKEN;if(!token){await releaseOrder(id,"configuration_error");return Response.json({error:"Mercado Pago aún no está configurado.",orderId:id},{status:503})}
+ const origin=new URL(request.url).origin,response=await fetch("https://api.mercadopago.com/checkout/preferences",{method:"POST",headers:{Authorization:`Bearer ${token}`,"Content-Type":"application/json","X-Idempotency-Key":key},body:JSON.stringify({external_reference:id,items:products.map(p=>({id:String(p.id),title:p.name,currency_id:"PEN",unit_price:p.price_pen/100,quantity:p.quantity})),payer:{email:user.email},back_urls:{success:`${origin}/orders?payment=success`,pending:`${origin}/orders?payment=pending`,failure:`${origin}/orders?payment=failure`},auto_return:"approved",notification_url:`${origin}/api/mercadopago/webhook`,expires:true,expiration_date_to:expiresAt})});
+ if(!response.ok){await releaseOrder(id,"payment_setup_failed");return Response.json({error:"Mercado Pago rechazó la creación del pago.",orderId:id},{status:502})}
+ const preference=await response.json() as {id:string;init_point?:string;sandbox_init_point?:string};const checkoutUrl=preference.init_point||preference.sandbox_init_point;if(!checkoutUrl){await releaseOrder(id,"payment_setup_failed");return Response.json({error:"Mercado Pago no devolvió una URL de pago.",orderId:id},{status:502})}
+ await runtimeEnv().DB.prepare("UPDATE orders SET preference_id=?,checkout_url=? WHERE id=?").bind(preference.id,checkoutUrl,id).run();return Response.json({orderId:id,checkoutUrl});
+ }catch(error){if(error instanceof Response)return error;return Response.json({error:"No se pudo iniciar el pago."},{status:500})}}
