@@ -13,6 +13,12 @@ CREATE TABLE users (
  created_at TEXT NOT NULL,
  updated_at TEXT NOT NULL
 );
+CREATE TABLE auth_attempts (
+ key TEXT PRIMARY KEY NOT NULL,
+ count INTEGER NOT NULL,
+ reset_at TEXT NOT NULL
+);
+CREATE INDEX auth_attempts_reset_idx ON auth_attempts(reset_at);
 CREATE TABLE sessions (
  id TEXT PRIMARY KEY NOT NULL,
  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
