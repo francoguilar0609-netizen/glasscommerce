@@ -10,6 +10,7 @@ The architecture now prevents overselling through database-backed reservations a
 - `MERCADO_PAGO_WEBHOOK_SECRET`: secret configured for signed Mercado Pago notifications.
 - `CRON_SECRET`: bearer secret for `POST /api/internal/release-reservations`.
 - `USD_PEN_RATE`: informational PEN per USD rate; charges remain in PEN.
+- `ALLOW_LOCAL_REGISTRATION=true`: enables unverified self-registration and is intended only for controlled environments until email verification is integrated. Leave unset in production.
 - `TRUST_PROXY_AUTH_HEADERS=true`: optional compatibility bridge for a proxy that strips client headers and injects verified `oai-authenticated-user-email`. Leave unset elsewhere.
 - `ADMIN_EMAILS`: administrators accepted only through that verified proxy bridge. Portable accounts obtain admin access by setting `users.role='admin'` through a controlled operational process, never merely by registering a matching email.
 
