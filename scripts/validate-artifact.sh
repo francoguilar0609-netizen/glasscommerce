@@ -32,6 +32,10 @@ const worker = await import(workerUrl.href);
 if (!worker.default || typeof worker.default.fetch !== "function") {
   throw new Error("dist/server/index.js must have an ESM default export with fetch(request, env, ctx)");
 }
+if (typeof worker.default.scheduled !== "function") {
+  throw new Error("dist/server/index.js must expose scheduled(controller, env, ctx) for reservation cleanup");
+}
 NODE
 
-echo "Validated Sites artifact: ESM Worker default.fetch and hosting manifest are present."
+echo "Validated Sites artifact: ESM Worker fetch/scheduled handlers and hosting manifest are present."
+
