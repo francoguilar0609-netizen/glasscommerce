@@ -38,4 +38,3 @@ if (typeof worker.default.scheduled !== "function") {
 NODE
 
 echo "Validated Sites artifact: ESM Worker fetch/scheduled handlers and hosting manifest are present."
-
