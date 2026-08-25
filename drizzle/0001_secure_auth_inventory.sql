@@ -127,4 +127,3 @@ BEGIN
      reserved_stock=reserved_stock-(SELECT quantity FROM reservation_items WHERE reservation_id=NEW.id AND product_id=products.id)
  WHERE id IN (SELECT product_id FROM reservation_items WHERE reservation_id=NEW.id);
 END;
-
