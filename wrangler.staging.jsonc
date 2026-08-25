@@ -1,0 +1,44 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "glasscommerce-staging",
+  "main": "dist/server/index.js",
+  "compatibility_date": "2026-05-15",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": true,
+  "preview_urls": false,
+  "no_bundle": true,
+  "rules": [
+    {
+      "type": "ESModule",
+      "globs": ["**/*.js", "**/*.mjs"]
+    }
+  ],
+  "assets": {
+    "directory": "dist/client",
+    "binding": "ASSETS"
+  },
+  "images": {
+    "binding": "IMAGES"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "glasscommerce-staging",
+      "database_id": "ac6a41f2-321c-4ba0-9073-35b847cc7ca5",
+      "migrations_dir": "drizzle"
+    }
+  ],
+  "vars": {
+    "DEPLOYMENT_ENV": "staging",
+    "ALLOW_LOCAL_REGISTRATION": "false",
+    "TRUST_PROXY_AUTH_HEADERS": "false",
+    "USD_PEN_RATE": "3.75"
+  },
+  "triggers": {
+    "crons": ["*/5 * * * *"]
+  },
+  "observability": {
+    "enabled": true
+  }
+}
+

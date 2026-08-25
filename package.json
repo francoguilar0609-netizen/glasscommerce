@@ -14,6 +14,7 @@
     "start": "WRANGLER_LOG_PATH=.wrangler/wrangler.log vinext start",
     "test": "npm run build && node --experimental-sqlite --test tests/*.test.mjs",
     "validate:artifact": "bash scripts/validate-artifact.sh",
+    "prepare:staging": "node scripts/prepare-staging-config.mjs",
     "lint": "bash scripts/sites-env.sh -- eslint . --ignore-pattern dist --ignore-pattern .next",
     "typecheck": "bash scripts/sites-env.sh -- tsc --noEmit",
     "db:generate": "bash scripts/sites-env.sh -- drizzle-kit generate"
@@ -45,3 +46,4 @@
   "type": "module",
   "displayName": "GlassCommerce"
 }
+
