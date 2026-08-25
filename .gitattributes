@@ -1,0 +1,3 @@
+drizzle/*.sql text eol=lf
+scripts/*.sql text eol=lf
+
